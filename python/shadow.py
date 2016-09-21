@@ -6,25 +6,33 @@ from scipy import ndimage
 from numpy.random import rand
 from scipy.ndimage.filters import gaussian_filter
 
+DIR="samples/new_trees/sanitized/"
 def main():
 
     scene = np.array(PIL.Image.open("img_raw00181.jpg"), dtype=np.float32)
 
-    tree = extract_tree_silhouette('aachen_000001_000019_leftImg8bit.png', 'aachen_000001_000019_gtFine_labelIds.png');
-
     for i in range(100):
+        # idx = np.clip(int(rand() * 50), 0, 50)
+        idx = i % 46
+        # idx = 19
+        tree_fn = "{}/{:02d}.png".format(DIR, idx)
+        print i, tree_fn
+        # tree = extract_tree_silhouette('aachen_000001_000019_leftImg8bit.png', 'aachen_000001_000019_gtFine_labelIds.png')
+        tree = extract_tree_silhouette(tree_fn)
         shadow = gen_shadow(tree, scene.shape[:2])
         result = (scene * shadow[..., None]).astype(np.uint8)
-        PIL.Image.fromarray(result).save("results/a{:04d}.jpg".format(i))
-    
-    pass
+        PIL.Image.fromarray(result).save("results-2/a{:04d}.jpg".format(i))
 
 # treeId=21 is defined in Cityscapes dataset
-def extract_tree_silhouette(raw_path, label_path, treeId=21, nStd=0.2):
+def extract_tree_silhouette(raw_path, label_path=None, treeId=21, nStd=0.2):
     scene = np.array(PIL.Image.open(raw_path))
-    label = np.array(PIL.Image.open(label_path))
+    if label_path is not None:
+        label = np.array(PIL.Image.open(label_path))
+        mask = (label == 21)
+    else:
+        mask = (scene[:, :, 0] == 255) & (scene[:, :, 1] == 255) & (scene[:, :, 2] == 255)
+        mask = ~mask
 
-    mask = (label == 21)
     nz_0 = np.sum(mask, axis=0).nonzero()[0]
     nz_1 = np.sum(mask, axis=1).nonzero()[0]
     x_min, x_max, y_min, y_max = nz_0[0], nz_0[-1], nz_1[0], nz_1[-1]
@@ -32,14 +40,13 @@ def extract_tree_silhouette(raw_path, label_path, treeId=21, nStd=0.2):
 
     scene = scene[y_min:y_max, x_min:x_max, :]
     mask = mask[y_min:y_max, x_min:x_max]
-    PIL.Image.fromarray(mask.astype(np.uint8) * 255).save("labeled.png")
 
     # Calculate RGB statistics
     rgbs = scene[mask, :]
     mean = np.mean(rgbs, axis=0)
     std = np.std(rgbs, axis=0)
 
-    nStd = nStd + rand() * 0.3
+    nStd = nStd + rand() * 0.5
 
     for i in [0, 1, 2]:
         mask &= abs(scene[..., i] - mean[i]) < nStd * std[i]
@@ -66,7 +73,7 @@ def rotateAndScale(img, deg):
     rotatedImg = cv2.warpAffine(img, M, dsize=(int(newX),int(newY)))
     return rotatedImg
 
-def gen_shadow(tree, bg_size, min_illumination=0.6, min_dist=3, max_dist=15):
+def gen_shadow(tree, bg_size, min_illumination=0.6, min_dist=3, max_dist=8):
 
     H, W = bg_size
     
@@ -80,7 +87,7 @@ def gen_shadow(tree, bg_size, min_illumination=0.6, min_dist=3, max_dist=15):
     # Random crop
     h, w = rotated_tree.shape
     crop_w = int(w * np.clip(rand(), 0.2, 0.8))
-    crop_h = int(h * np.clip(rand(), 0.2, 0.8))
+    crop_h = int(h * np.clip(rand(), 0.35, 0.65))
 
     x0 = int(rand() * (h - crop_h - 1) * 0.99)
     y0 = int(rand() * (w - crop_w - 1) * 0.99)
@@ -102,7 +109,13 @@ def gen_shadow(tree, bg_size, min_illumination=0.6, min_dist=3, max_dist=15):
     illumination = rand() * (1 - min_illumination) + min_illumination
     distance = rand() * (max_dist - min_dist) + min_dist
 
-    resized = cv2.resize(cropped, (W, int(H * 0.6)))
+    # Resize shadow to be a little bit wider in width, shorter in height
+    h_ratio = 0.6 + 0.1 * rand()
+    w_ratio = 1.2 + 0.3 * rand()
+    resized = cv2.resize(cropped, (int(W * w_ratio), int(H * h_ratio)))
+
+    w_offset = int((resized.shape[1] - W) / 2)
+    resized = resized[:, w_offset:w_offset + W]
     blurred = gaussian_filter(resized, sigma=distance).astype(np.float32) / 255.
 
     shadow = np.ones((H, W), dtype=np.float32)
