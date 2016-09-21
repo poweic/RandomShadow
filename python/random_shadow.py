@@ -2,14 +2,13 @@
 import cv2
 import PIL.Image
 import numpy as np
-from scipy import ndimage
 from numpy.random import rand
 from scipy.ndimage.filters import gaussian_filter
 
 class RandomShadowGenerator():
     def __init__(self):
         N_TREES = 46
-        DIR="samples/new_trees/sanitized/"
+        DIR="samples"
 
         self.trees = []
         for i in range(N_TREES):
@@ -29,7 +28,6 @@ class RandomShadowGenerator():
         nz_0 = np.sum(mask, axis=0).nonzero()[0]
         nz_1 = np.sum(mask, axis=1).nonzero()[0]
         x_min, x_max, y_min, y_max = nz_0[0], nz_0[-1], nz_1[0], nz_1[-1]
-        print x_min, x_max, y_min, y_max
 
         tree = tree[y_min:y_max, x_min:x_max, :]
         mask = mask[y_min:y_max, x_min:x_max]
@@ -108,16 +106,3 @@ class RandomShadowGenerator():
 
         rotatedImg = cv2.warpAffine(img, M, dsize=(int(newX),int(newY)))
         return rotatedImg
-
-def main():
-
-    scene = np.array(PIL.Image.open("img_raw00181.jpg"), dtype=np.float32)
-
-    RSG = RandomShadowGenerator()
-
-    for i in range(100):
-        shadow = RSG(scene.shape[:2])
-        result = (scene * shadow).astype(np.uint8)
-        PIL.Image.fromarray(result).save("results-2/a{:04d}.jpg".format(i))
-
-main()
