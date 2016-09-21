@@ -1,6 +1,8 @@
 #!/usr/bin/python
+import os 
 import cv2
 import PIL.Image
+from path import Path
 import numpy as np
 from numpy.random import rand
 from scipy.ndimage.filters import gaussian_filter
@@ -8,7 +10,7 @@ from scipy.ndimage.filters import gaussian_filter
 class RandomShadowGenerator():
     def __init__(self):
         N_TREES = 46
-        DIR="samples"
+        DIR = os.path.dirname(os.path.realpath(__file__)) + "/../samples/"
 
         self.trees = []
         for i in range(N_TREES):
