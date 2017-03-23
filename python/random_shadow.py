@@ -84,14 +84,18 @@ class RandomShadowGenerator():
         # Resize shadow to be a little bit wider in width, shorter in height
         h_ratio = 0.6 + 0.1 * rand()
         w_ratio = 1.2 + 0.3 * rand()
-        resized = cv2.resize(cropped, (int(W * w_ratio), int(H * h_ratio)))
-
-        w_offset = int((resized.shape[1] - W) / 2)
-        resized = resized[:, w_offset:w_offset + W]
-        blurred = gaussian_filter(resized, sigma=distance).astype(np.float32) / 255.
 
         shadow = np.ones((H, W), dtype=np.float32)
-        shadow[H - blurred.shape[0]:, :] = 1.0 - blurred * illumination
+        try:
+            resized = cv2.resize(cropped, (int(W * w_ratio), int(H * h_ratio)))
+
+            w_offset = int((resized.shape[1] - W) / 2)
+            resized = resized[:, w_offset:w_offset + W]
+            blurred = gaussian_filter(resized, sigma=distance).astype(np.float32) / 255.
+
+            shadow[H - blurred.shape[0]:, :] = 1.0 - blurred * illumination
+        except:
+            pass
 
         return shadow
 
